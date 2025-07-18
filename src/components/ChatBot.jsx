@@ -4,6 +4,7 @@ import * as yup from 'yup'
 import { useContext } from 'react'
 import { ChatContext } from '../Context/chatContext'
 import { useOllama } from '../hooks/useOllama'
+import '../ChatBot.css'
 
 const schema = yup.object({
   userInput: yup
@@ -35,29 +36,28 @@ export const ChatBot = () => {
   }
 
   return (
-    <>
+    <div className='chat-container'>
+
+      <div className='chat-messages'>
+        {state.messages.map((msg, index) => (
+          <div
+            key={index}
+            className={`message ${msg.from === 'user' ? 'user' : 'bot'}`}
+          >
+            {msg.text}
+          </div>
+        ))}
+        {state.loading && <p className='loading'>Generando respuesta 🧠</p>}
+      </div>
       <form onSubmit={handleSubmit(handlePregunta)}>
         <input
           type='text'
           {...register('userInput')}
-          className='w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400'
+          placeholder='Escribe tu mensaje...'
         />
-        <br />
-        {errors.userInput && <p>{errors.userInput.message}</p>}
-        <button
-          className='w-full py-2 rounded transition cursor-pointer bg-blue-600 text-white hover:bg-blue-700'
-        >Preguntar
-        </button>
+        <button type='submit'>Preguntar</button>
       </form>
-      <div>
-        {state.messages.map((msg, index) => (
-          <p key={index}>
-            <strong>{msg.from === 'user' ? 'Tú: ' : 'Bot: '}</strong>
-            {msg.text}
-          </p>
-        ))}
-        {state.loading && 'Generando respuesta 🧠'}
-      </div>
-    </>
+      {errors.userInput && <p>{errors.userInput.message}</p>}
+    </div>
   )
 }
