@@ -1,78 +1,102 @@
-require('dotenv').config()
-/* console.log(process.env.PORT) // Objeto process; para acceder a información del proyecto
-// PORT es undefined al inicio; se define en archivo .env
-console.log(process.env.NOMBRE) */
+// 1. Importar express Common JS
+/* const express = require('express')
+require('dotenv').config()  */// ejecuta
 
-const express = require('express') // Importar módulo de Express
+// Otra forma de hacer la importación ...
+// 1. Importar express y dotenv con ESModules
+import express from 'express'
+import dotenv from 'dotenv'
 
-const { infoPeliculas } = require('./peliculas') // Importar objeto con información de películas
-/* console.log(infoPeliculas) */
+import fs from 'fs' // Importar file system (de node), permite acceder a métodos para gestionar archivos ej. leerlos, modificarlos, eliminarlos, etc.
 
-const app = express() // Crear aplicación de Express
+dotenv.config()
 
-/* const PORT = 3000 */ // Definir puerto que va a escuchar el servidor
+// 2. Crear la aplicación de express
+const app = express()
 const PORT = process.env.PORT
 
-// Crear servidor
+// Función que lee la información de la base de datos db.json
+const readData = () => {
+  try {
+    const data = fs.readFileSync('./src/db.json')
+    return JSON.parse(data)
+  } catch (error) {
+    console.error(error)
+  }
+}
+
+/* console.log(readData()) */
+
+// Función que escribe dentro de db.json
+const writeData = (data) => {
+  try {
+    fs.writeFileSync('./src/db.json', JSON.stringify(data)) // La función no retorna nada, sino que se ejecuta directamente
+  } catch (error) {
+    console.error(error)
+  }
+  // se puede incluir, pero no es necesario:
+  // return JSON.stingify(data)
+}
+
+// 3. Utilizar la app
 app.get('/', (req, res) => {
   res.send('Hola mundo')
-}) // get(ruta -endpoint es la raíz-, callback(solicitud, respuesta))
-// res = lo que queremos mostrar
-
-app.get('/api/peliculas', (req, res) => {
-  res.send(infoPeliculas)
 })
 
-app.get('/api/peliculas/accion/titulo/:titulo/:year', (req, res) => {
-  /* const titulo = req.params.titulo
-  const year = req.params.year */
-  const { titulo, year } = req.params // Es lo mismo que arriba, pero de forma condensada
-  const resultados = infoPeliculas.accion.filter(pelicula => pelicula.titulo === titulo && pelicula.year === Number(year))
+app.get('/peliculas', (req, res) => {
+  const data = readData()
+  res.json(data)
+})
 
-  /* res.send(infoPeliculas.accion) */
+// Obtener datos
+app.get('/peliculas/:id', (req, res) => {
+  const id = parseInt(req.params.id)
+  const result = readData().accion.find(pelicula => pelicula.id === id)
+  res.json(result)
+})
 
-  if (resultados.length === 0) {
-    return res.status(400).send(`No se encontraron resultados para ${titulo} en el año ${year}`)
-  } // 400 = fallo
-
-  res.send(resultados)
-}) // Uso de parámetros
-// Ruta: http://localhost:3000/api/peliculas/accion
-// :titulo = parámetro; puede ser también :year; para no crear una ruta para cada uno
-// Si se quiere usar titulo y year como parámetros por separado debe usarse un diferenciador en su ruta, como añadir la palabra titulo o year. Ej. app.get('/api/peliculas/accion/year/:year')
-// En este caso se usaron ambos parámetros en la ruta
-// Considerar el tipo de dato, ej. convertir a número el año (en el enlace está como string).
-
-app.get('/api/peliculas/comedia/:pais', (req, res) => {
-  const pais = req.params.pais
-  const resultados = infoPeliculas.comedia.filter(pelicula => pelicula.pais === pais)
-
-  if (req.query.ordenar === 'year') {
-    return res.send(resultados.sort((a, b) => b.year - a.year))
+// Añadir datos
+app.use(express.json())
+app.post('/peliculas', (req, res) => {
+  const data = readData()
+  const body = req.body
+  const newMovie = {
+    id: data.accion.length + 1,
+    ...body
   }
-
-  res.send(resultados)
-}) // Uso de queries
-// RUTA: http://localhost:3000/api/peliculas/comedia/usa?ordenar=year
-
-app.use(express.json()) // middleware
-app.post('/api/peliculas', (req, res) => {
-  const nuevaPelicula = req.body
-
-  console.log(nuevaPelicula)
-
-  res.status(201).send({
-    mensaje: 'La película se recibió con éxito',
-    datos: nuevaPelicula
-  })
-}) // Uso de POST
-
-// Escuchar servidor
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`)
+  data.accion.push(newMovie)
+  writeData(data)
+  res.json(newMovie)
 })
 
-// Notas adicionales:
-// Crear archivo .env y definir variables, ej. PORT = 3000
-// Instalar: npm install -D dotenv
-// Añadir en .gitignore: .env
+// Modificar datos
+app.put('/peliculas/:id', (req, res) => {
+  const data = readData()
+  const id = parseInt(req.params.id)
+  const body = req.body
+  const peliculaIndex = data.accion.findIndex(movie => movie.id === id)
+  data.accion[peliculaIndex] = {
+    ...data.accion[peliculaIndex],
+    ...body
+  }
+  writeData(data)
+  res.json({ message: 'Pelicula actualizada correctamente' })
+})
+
+// Eliminar datos
+app.delete('/peliculas/:id', (req, res) => {
+  const data = readData()
+  const id = parseInt(req.params.id)
+  const peliculaIndex = data.accion.findIndex(movie => movie.id === id)
+  data.accion.splice(peliculaIndex, 1)
+  writeData(data)
+  res.json({ message: 'Pelicula eliminada correctamente' })
+})
+
+app.listen(PORT, () => {
+  console.log('Servidor corriendo en puerto', PORT)
+})
+
+// Extensiones:
+// Thunder Client -> Añade un ícono donde puede ser utilizado ⚡
+// REST Client -> Archivo http
